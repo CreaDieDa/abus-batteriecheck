@@ -3,13 +3,13 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime, timedelta
 
-# 1. Browsertab Name
+# 1. Seitenkonfiguration
 st.set_page_config(page_title="ABUS Batteriecheck", page_icon="🔋", layout="wide")
 
-# 2. Hauptüberschrift
+# 2. Titel
 st.title("🔋 ABUS Batteriecheck")
 
-# --- VERBINDUNG & DATEN (ttl=0 für Echtzeit) ---
+# --- VERBINDUNG & DATEN ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 df = conn.read(ttl=0) 
 
@@ -23,7 +23,7 @@ COL_STATUS = "Status"
 if df is None or df.empty or COL_NAME not in df.columns:
     df = pd.DataFrame(columns=[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK, COL_STATUS])
 
-# Datumsformate für Logik vorbereiten
+# Datumsformate vorbereiten
 df[COL_LETZTER] = pd.to_datetime(df[COL_LETZTER], errors='coerce').dt.date
 df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
 df_clean = df.dropna(subset=[COL_NAME]).copy()
@@ -37,13 +37,13 @@ def style_status(row):
     h = datetime.now().date()
     n = row[COL_NAECHSTER]
     if pd.isna(n): return [''] * len(row)
-    if n < h: return ['background-color: #ffcccc'] * len(row) # Rot
-    elif n < h + timedelta(days=30): return ['background-color: #fff3cd'] * len(row) # Gelb
-    else: return ['background-color: #d4edda'] * len(row) # Grün
+    if n < h: return ['background-color: #ffcccc'] * len(row)
+    elif n < h + timedelta(days=30): return ['background-color: #fff3cd'] * len(row)
+    else: return ['background-color: #d4edda'] * len(row)
 
 # --- DASHBOARD ---
+heute = datetime.now().date()
 if not df_clean.empty:
-    heute = datetime.now().date()
     df_aktuell_check = df_clean.sort_values(by=COL_LETZTER, ascending=False).drop_duplicates(subset=[COL_NAME])
     kritisch = len(df_aktuell_check[df_aktuell_check[COL_NAECHSTER] < heute])
     bald = len(df_aktuell_check[(df_aktuell_check[COL_NAECHSTER] >= heute) & (df_aktuell_check[COL_NAECHSTER] < heute + timedelta(days=30))])
@@ -60,7 +60,7 @@ st.markdown("---")
 with st.expander("➕ Neuen Batteriewechsel registrieren"):
     with st.form("entry_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
-        n_in = col1.text_input("Sender Name").strip()
+        n_in = col1.text_input("Sender Name (z.B. Z202)").strip()
         d_in = col2.date_input("Wechseldatum", heute, format="DD.MM.YYYY")
         
         b_ort = ""
@@ -70,7 +70,7 @@ with st.expander("➕ Neuen Batteriewechsel registrieren"):
                 lo = t.iloc[-1][COL_ORT]
                 if pd.notnull(lo) and str(lo).lower() != "nan": b_ort = str(lo)
         
-        o_in = st.text_input("Standort (Etage/Raum)", value=b_ort)
+        o_in = st.text_input("Standort (z.B. Erdgeschoss)", value=b_ort)
         v_in = st.text_input("Vermerke (z.B. CR2032)")
         if st.form_submit_button("Speichern"):
             naechster = d_in + timedelta(days=547)
@@ -80,35 +80,40 @@ with st.expander("➕ Neuen Batteriewechsel registrieren"):
             st.success("Gespeichert!")
             st.rerun()
 
-# --- ANZEIGE MIT FILTER ---
+# --- ANZEIGE MIT STANDORT-FILTER ---
 if not df_clean.empty:
     st.subheader("📡 Aktueller Status")
     
-    # Dropdown für Standorte (Etagen)
     alle_standorte = sorted(df_clean[COL_ORT].dropna().unique())
-    filter_ort = st.selectbox("Nach Standort/Etage filtern:", ["Alle Standorte"] + alle_standorte)
+    filter_ort = st.selectbox("Nach Standort filtern:", ["Alle Standorte"] + alle_standorte)
     
-    # Daten filtern
     df_aktuell = df_clean.sort_values(by=[COL_ORT, COL_LETZTER], ascending=[True, False]).drop_duplicates(subset=[COL_NAME])
     
     if filter_ort != "Alle Standorte":
         df_aktuell = df_aktuell[df_aktuell[COL_ORT] == filter_ort]
 
-    # Haupttabelle anzeigen
     st.dataframe(
         df_aktuell.style.apply(style_status, axis=1).format({COL_LETZTER: format_date, COL_NAECHSTER: format_date}),
         use_container_width=True, hide_index=True
     )
 
-    # Export Button
     csv = df_aktuell.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Liste für PDF-Druck exportieren (CSV)", csv, f"ABUS_Check_{heute}.csv", "text/csv")
     
-    # Historie
-    with st.expander("🕒 Historie & Verlauf"):
+    # --- HISTORIE MIT SENDER-FILTER ---
+    st.markdown("---")
+    with st.expander("🕒 Historie & Verlauf (pro Sender filterbar)", expanded=True):
+        alle_sender = sorted(df_clean[COL_NAME].unique())
+        filter_sender = st.selectbox("Sender auswählen, um Verlauf zu sehen:", ["Alle Sender anzeigen"] + alle_sender)
+        
         df_hist = df_clean.sort_values(by=COL_LETZTER, ascending=False).copy()
+        
+        if filter_sender != "Alle Sender anzeigen":
+            df_hist = df_hist[df_hist[COL_NAME] == filter_sender]
+            
         df_hist[COL_LETZTER] = df_hist[COL_LETZTER].apply(format_date)
         df_hist[COL_NAECHSTER] = df_hist[COL_NAECHSTER].apply(format_date)
+        
         st.table(df_hist[[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK]])
 else:
     st.info("Noch keine Daten vorhanden.")
