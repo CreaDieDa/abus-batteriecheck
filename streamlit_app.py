@@ -9,11 +9,6 @@ st.set_page_config(page_title="ABUS Batteriecheck", page_icon="🔋", layout="wi
 # 2. Hauptüberschrift
 st.title("🔋 ABUS Batteriecheck")
 
-# --- NUTZERIDENTIFIKATION ---
-st.sidebar.markdown("### 👤 Nutzerprofil")
-st.sidebar.image("https://www.gstatic.com/images/branding/product/2x/keep_2020q4_48dp.png", width=80)
-st.sidebar.info("Verwaltung der ABUS Funk-Sender")
-
 # --- VERBINDUNG & DATEN (ttl=0 für Echtzeit) ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 df = conn.read(ttl=0) 
@@ -34,7 +29,7 @@ df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
 df_clean = df.dropna(subset=[COL_NAME]).copy()
 df_clean = df_clean[df_clean[COL_NAME].astype(str).str.lower() != "none"]
 
-# Hilfsfunktionen für Anzeige
+# Hilfsfunktionen
 def format_date(d):
     return d.strftime('%d.%m.%Y') if pd.notnull(d) and hasattr(d, 'strftime') else ""
 
@@ -62,7 +57,7 @@ if not df_clean.empty:
 st.markdown("---")
 
 # --- EINGABE ---
-with st.expander("➕ Neuen Wechsel registrieren"):
+with st.expander("➕ Neuen Batteriewechsel registrieren"):
     with st.form("entry_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         n_in = col1.text_input("Sender Name").strip()
@@ -75,7 +70,7 @@ with st.expander("➕ Neuen Wechsel registrieren"):
                 lo = t.iloc[-1][COL_ORT]
                 if pd.notnull(lo) and str(lo).lower() != "nan": b_ort = str(lo)
         
-        o_in = st.text_input("Standort", value=b_ort)
+        o_in = st.text_input("Standort (Etage/Raum)", value=b_ort)
         v_in = st.text_input("Vermerke (z.B. CR2032)")
         if st.form_submit_button("Speichern"):
             naechster = d_in + timedelta(days=547)
@@ -85,22 +80,32 @@ with st.expander("➕ Neuen Wechsel registrieren"):
             st.success("Gespeichert!")
             st.rerun()
 
-# --- ANZEIGE MIT FARBEN ---
+# --- ANZEIGE MIT FILTER ---
 if not df_clean.empty:
     st.subheader("📡 Aktueller Status")
+    
+    # Dropdown für Standorte (Etagen)
+    alle_standorte = sorted(df_clean[COL_ORT].dropna().unique())
+    filter_ort = st.selectbox("Nach Standort/Etage filtern:", ["Alle Standorte"] + alle_standorte)
+    
+    # Daten filtern
     df_aktuell = df_clean.sort_values(by=[COL_ORT, COL_LETZTER], ascending=[True, False]).drop_duplicates(subset=[COL_NAME])
     
-    # Hier wird die Farblogik auf die Tabelle angewendet
+    if filter_ort != "Alle Standorte":
+        df_aktuell = df_aktuell[df_aktuell[COL_ORT] == filter_ort]
+
+    # Haupttabelle anzeigen
     st.dataframe(
         df_aktuell.style.apply(style_status, axis=1).format({COL_LETZTER: format_date, COL_NAECHSTER: format_date}),
         use_container_width=True, hide_index=True
     )
 
+    # Export Button
     csv = df_aktuell.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Liste für PDF-Druck exportieren (CSV)", csv, f"ABUS_Check_{heute}.csv", "text/csv")
     
+    # Historie
     with st.expander("🕒 Historie & Verlauf"):
-        # Historie sortiert anzeigen
         df_hist = df_clean.sort_values(by=COL_LETZTER, ascending=False).copy()
         df_hist[COL_LETZTER] = df_hist[COL_LETZTER].apply(format_date)
         df_hist[COL_NAECHSTER] = df_hist[COL_NAECHSTER].apply(format_date)
