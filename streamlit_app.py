@@ -38,7 +38,7 @@ if submit_button:
         updated_df = pd.concat([df, new_row], ignore_index=True)
         
         # Zurück in die Google Tabelle schreiben
-        conn.update(data=updated_df)
+        conn.update(worksheet="Tabellenblatt1",data=updated_df)
         
         st.success(f"Erfolgreich gespeichert: {sender_name} am {datum}")
         st.balloons() # Ein kleiner Feiereffekt
