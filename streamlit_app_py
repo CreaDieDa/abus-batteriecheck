@@ -1,0 +1,24 @@
+import streamlit as st
+from streamlit_gsheets import GSheetsConnection
+
+st.title("🔋 Sender-Wartung")
+
+# Verbindung zur Google Tabelle
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Daten einlesen
+df = conn.read()
+
+# Formular für neue Einträge
+with st.form("entry_form"):
+    sender = st.text_input("Sender Name")
+    standort = st.text_input("Standort")
+    datum = st.date_input("Tag des Batteriewechsels")
+    submit = st.form_submit_button("Speichern")
+
+    if submit:
+        # Hier wird die Zeile angehängt
+        new_data = {"Sender Name": sender, "Standort": standort, "Letzter Batteriewechsel": str(datum)}
+        # In der echten App würde hier df.append kommen, wir lassen es für den ersten Test simpel:
+        st.success(f"Daten für {sender} wurden vorgemerkt!")
+        st.info("Hinweis: Das echte Schreiben aktivieren wir, sobald die Verbindung steht.")
