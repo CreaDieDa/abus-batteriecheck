@@ -12,7 +12,7 @@ st.title("🔋 Sender-Batterie-Check")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # 2. Daten einlesen
-df = conn.read()
+df = conn.read(ttl=0)
 
 # --- SPALTEN-DEFINITIONEN ---
 COL_NAME = "Sender Name"
