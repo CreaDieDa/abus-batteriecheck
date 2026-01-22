@@ -59,12 +59,10 @@ try:
     df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
     
     # 3. AUTOMATISCHE ERGÄNZUNG (+547 Tage)
-    # Wichtig: Erst rechnen, wenn die Felder noch wirklich leer (null) sind
     maske = (df[COL_LETZTER].notnull()) & (df[COL_NAECHSTER].isnull())
     df.loc[maske, COL_NAECHSTER] = df.loc[maske, COL_LETZTER] + timedelta(days=547)
 
-    # --- REINIGUNG DER TEXT-SPALTEN (Gegen das 'None') ---
-    # Wir bereinigen nur die Textspalten. Datum bleibt Datum!
+    # REINIGUNG DER TEXT-SPALTEN
     for col in [COL_ORT, COL_VERMERK, "Status"]:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
@@ -138,13 +136,15 @@ try:
         use_container_width=True, hide_index=True
     )
 
-# --- HISTORIE (Vervollständigung) ---
-        df_hist[COL_LETZTER] = df_hist[COL_LETZTER].apply(format_date)
-        df_hist[COL_NAECHSTER] = df_hist[COL_NAECHSTER].apply(format_date)
+    # --- HISTORIE ---
+    st.markdown("---")
+    with st.expander("🕒 Historie & Verlauf (Alle Einträge)"):
+        alle_sender = sorted(df_clean[COL_NAME].unique())
+        f_sender = st.selectbox("Sender wählen:", ["Alle"] + alle_sender)
+        df_hist = df_clean.sort_values(by=COL_LETZTER, ascending=False).copy()
         
-        # Anzeige als Tabelle für bessere Lesbarkeit in der Historie
-        st.table(df_hist[[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK]])
-
-except Exception as e:
-    st.error(f"Ein Fehler ist aufgetreten: {e}")
-    st.info("Bitte prüfe, ob die Google Sheets Verbindung korrekt konfiguriert ist.")
+        if f_sender != "Alle":
+            df_hist = df_hist[df_hist[COL_NAME] == f_sender]
+        
+        # Hier war der IndentationError - jetzt korrigiert:
+        df_
