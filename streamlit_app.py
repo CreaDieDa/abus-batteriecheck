@@ -27,7 +27,8 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data():
     return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
 
-df = get_data()
+try:
+    df = get_data()
     # Diese Zeile hier einfügen:
     df = df.astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
 
