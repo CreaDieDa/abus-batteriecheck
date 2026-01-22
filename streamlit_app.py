@@ -13,7 +13,7 @@ st.markdown("""
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
         header {visibility: hidden;}
-        .stDeployButton {display:   ;}
+        .stDeployButton {display:none;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -27,7 +27,12 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data():
     return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
 
-df = load_data()
+try:
+    df = load_data_simple()
+    
+    # --- NEU: LEERE FELDER (None/NaN) DURCH LEERZEICHEN ERSETZEN ---
+    df = df.fillna("") 
+    # --------------------------------------------------------------
 
 COL_NAME = "Sender Name"
 COL_ORT = "Standort"
