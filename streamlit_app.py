@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 # Seite konfigurieren
 st.set_page_config(page_title="ABUS-Batteriecheck", page_icon="🔋")
  
-st.title("🔋 Abus-Battcerieheck")
+st.title("🔋 Abus-Batteriecheck")
 
 # 1. Verbindung zur Google Tabelle
 conn = st.connection("gsheets", type=GSheetsConnection)
