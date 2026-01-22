@@ -4,9 +4,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # Seite konfigurieren
-st.set_page_config(page_title="Sender-Batterie-Check", page_icon="🔋")
-
-st.title("🔋 Sender-Batterie-Check")
+st.set_page_config(page_title="Abus-Batteriecheck", page_icon="🔋")
+ 
+st.title("🔋 Abus-Battcerieheck")
 
 # 1. Verbindung zur Google Tabelle
 conn = st.connection("gsheets", type=GSheetsConnection)
