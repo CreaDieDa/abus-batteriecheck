@@ -53,17 +53,15 @@ try:
     COL_NAECHSTER = "Nächster Wechsel (geplant)"
     COL_VERMERK = "Vermerke (z.B. Batterie)"
 
-    # 2. DATUMS-KONVERTIERUNG (Zuerst in echte Daten wandeln)
+    # 2. DATUMS-KONVERTIERUNG
     df[COL_LETZTER] = pd.to_datetime(df[COL_LETZTER], errors='coerce').dt.date
     df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
     
-    # 3. AUTOMATISCHE ERGÄNZUNG (Berechnung der 547 Tage)
-    # Nur wenn 'Letzter Wechsel' da ist, aber 'Nächster Wechsel' fehlt
+    # 3. AUTOMATISCHE ERGÄNZUNG (547 Tage)
     maske = (df[COL_LETZTER].notnull()) & (df[COL_NAECHSTER].isnull())
     df.loc[maske, COL_NAECHSTER] = df.loc[maske, COL_LETZTER] + timedelta(days=547)
 
-    # 4. JETZT ERST DEN "NONE-KILLER" ANWENDEN (für die Anzeige)
-    # Aber wir behalten die Datumsspalten als echte Daten für die Sortierung!
+    # 4. SÄUBERUNG
     df[COL_ORT] = df[COL_ORT].fillna("")
     df[COL_VERMERK] = df[COL_VERMERK].fillna("")
     
@@ -72,11 +70,12 @@ try:
     # 5. FILTERUNG: Nur der aktuellste Eintrag pro Sender
     df_clean = df[df[COL_NAME].notnull() & (df[COL_NAME] != "")].copy()
     
-    # Wir sortieren so, dass überfällige (kleinstes Datum) oben stehen
+    # Sortierung: Überfällig (altes Datum) nach oben
     df_view_final = df_clean.sort_values(by=[COL_NAECHSTER, COL_NAME], ascending=[True, True])
-    
-    # Nur den aktuellsten Stand pro Sender behalten
     df_view_final = df_view_final.drop_duplicates(subset=[COL_NAME], keep='first')
+    
+    # Brücke bauen, um den 'NameError' zu verhindern:
+    df_aktuell = df_view_final
 
     # --- DASHBOARD ---
     kritisch = len(df_view_final[df_view_final[COL_NAECHSTER] < heute])
@@ -128,11 +127,12 @@ try:
     alle_standorte = sorted([s for s in df_aktuell[COL_ORT].unique() if s != ""])
     filter_ort = st.selectbox("Nach Standort filtern:", ["Alle Standorte"] + alle_standorte)
     
+    df_display = df_view_final.copy()
     if filter_ort != "Alle Standorte":
-        df_view_final = df_view_final[df_view_final[COL_ORT] == filter_ort]
+        df_display = df_display[df_display[COL_ORT] == filter_ort]
 
     st.dataframe(
-        df_view_final.style.apply(style_status, axis=1, heute=heute).format({COL_LETZTER: format_date, COL_NAECHSTER: format_date}),
+        df_display.style.apply(style_status, axis=1, heute=heute).format({COL_LETZTER: format_date, COL_NAECHSTER: format_date}),
         use_container_width=True, hide_index=True
     )
 
@@ -146,8 +146,4 @@ try:
             df_hist = df_hist[df_hist[COL_NAME] == f_sender]
         
         df_hist[COL_LETZTER] = df_hist[COL_LETZTER].apply(format_date)
-        df_hist[COL_NAECHSTER] = df_hist[COL_NAECHSTER].apply(format_date)
-        st.table(df_hist[[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK]])
-
-except Exception as e:
-    st.error(f"Fehler: {e}")
+        df_hist[COL_NAECHSTER] = df_hist[COL_NAECH
