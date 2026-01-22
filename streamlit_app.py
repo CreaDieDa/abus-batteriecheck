@@ -27,14 +27,22 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data():
     return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
 
-df = load_data()
+try:
+    df = get_data()
+    
+    # --- DER NONE-KILLER ---
+    # Wir ersetzen alle leeren Zellen (NaN/None) durch einen leeren Text
+    df = df.fillna("")
 
-COL_NAME = "Sender Name"
-COL_ORT = "Standort"
-COL_LETZTER = "Letzter Batteriewechsel"
-COL_NAECHSTER = "Nächster Wechsel (geplant)"
-COL_VERMERK = "Vermerke (z.B. Batterie)"
-COL_STATUS = "Status"
+    COL_NAME = "Sender Name"
+    COL_ORT = "Standort"
+    COL_LETZTER = "Letzter Batteriewechsel"
+    COL_NAECHSTER = "Nächster Wechsel (geplant)"
+    COL_VERMERK = "Vermerke (z.B. Batterie)"
+
+    if COL_NAME not in df.columns:
+        st.error("Konnte Spalte 'Sender Name' nicht finden. Prüfe die Google Tabelle!")
+    else:
 
 # Grundstruktur sicherstellen
 if df is None or df.empty or COL_NAME not in df.columns:
