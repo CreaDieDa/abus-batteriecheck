@@ -27,23 +27,14 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data():
     return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
 
-try:
-    df = load_data_simple()
-    
-    # 1. Leere Zellen ("None") sofort entfernen
-    df = df.fillna("") 
+df = load_data()
 
-    # 2. Spaltennamen festlegen
-    COL_NAME = "Sender Name"
-    COL_ORT = "Standort"
-    COL_LETZTER = "Letzter Batteriewechsel"
-    COL_NAECHSTER = "Nächster Wechsel (geplant)"
-    COL_VERMERK = "Vermerke (z.B. Batterie)"
-    COL_STATUS = "Status"
-
-except Exception as e:
-    st.error(f"Fehler beim Laden: {e}")
-    st.stop()
+COL_NAME = "Sender Name"
+COL_ORT = "Standort"
+COL_LETZTER = "Letzter Batteriewechsel"
+COL_NAECHSTER = "Nächster Wechsel (geplant)"
+COL_VERMERK = "Vermerke (z.B. Batterie)"
+COL_STATUS = "Status"
 
 # Grundstruktur sicherstellen
 if df is None or df.empty or COL_NAME not in df.columns:
