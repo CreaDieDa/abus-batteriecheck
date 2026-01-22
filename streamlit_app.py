@@ -28,34 +28,30 @@ def load_data():
     return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
 
 try:
+    # Daten laden
     df = get_data()
-    # Der None-Killer (muss exakt so weit eingerückt sein wie df = get_data)
-    df = df.fillna("").astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
     
-    # Diese Zeilen müssen AUCH eingerückt bleiben:
+    # --- NONE-KILLER ---
+    # Wir wandeln alles in Text um und löschen die "None/nan" Begriffe
+    df = df.astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
+
+    # Spaltennamen definieren
     COL_NAME = "Sender Name"
     COL_ORT = "Standort"
     COL_LETZTER = "Letzter Batteriewechsel"
     COL_NAECHSTER = "Nächster Wechsel (geplant)"
+    COL_VERMERK = "Vermerke (z.B. Batterie)"
 
-except Exception as e:
-    st.error(f"Fehler: {e}")
-
-COL_NAME = "Sender Name"
-COL_ORT = "Standort"
-COL_LETZTER = "Letzter Batteriewechsel"
-COL_NAECHSTER = "Nächster Wechsel (geplant)"
-COL_VERMERK = "Vermerke (z.B. Batterie)"
-COL_STATUS = "Status"
-
-# Grundstruktur sicherstellen
-if df is None or df.empty or COL_NAME not in df.columns:
-    df = pd.DataFrame(columns=[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK, COL_STATUS])
-
-# Datumsformate vorbereiten
-df[COL_LETZTER] = pd.to_datetime(df[COL_LETZTER], errors='coerce').dt.date
-df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
-
+    # Prüfung, ob Daten vorhanden sind
+    if df is None or df.empty or COL_NAME not in df.columns:
+        st.warning("Die Tabelle scheint leer zu sein oder Spaltennamen fehlen.")
+    else:
+        # DATUMS-LOGIK (Wir müssen die Spalten wieder zu "echten" Daten machen für das Dashboard)
+        df[COL_LETZTER] = pd.to_datetime(df[COL_LETZTER], errors='coerce').dt.date
+        df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
+        
+        heute = datetime.now().date()
+        
 # --- AUTOMATISCHE ERGÄNZUNG FÜR LEERE FELDER ---
 # Wenn 'Letzter Wechsel' da ist, aber 'Nächster Wechsel' fehlt: Berechne +547 Tage
 maske = df[COL_LETZTER].notnull() & df[COL_NAECHSTER].isnull()
