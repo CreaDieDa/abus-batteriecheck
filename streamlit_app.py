@@ -27,28 +27,16 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 def load_data():
     return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
 
-try:
-    df = get_data()
-    
-    # --- DER NONE-KILLER ---
-    # Wir ersetzen alle leeren Zellen (NaN/None) durch einen leeren Text
-    df = df.fillna("")
+df = get_data()
+    # Diese Zeile hier einfügen:
+    df = df.astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
 
-    COL_NAME = "Sender Name"
-    COL_ORT = "Standort"
-    COL_LETZTER = "Letzter Batteriewechsel"
-    COL_NAECHSTER = "Nächster Wechsel (geplant)"
-    COL_VERMERK = "Vermerke (z.B. Batterie)"
-
-   if COL_NAME not in df.columns:
-        st.error("Konnte Spalte 'Sender Name' nicht finden. Prüfe die Google Tabelle!")
-    else:
-        # DATUMS-LOGIK
-        # Wir wandeln die Spalten in echte Daten um, damit wir rechnen können
-        df[COL_LETZTER] = pd.to_datetime(df[COL_LETZTER], errors='coerce').dt.date
-        df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
-        
-        heute = datetime.now().date()
+COL_NAME = "Sender Name"
+COL_ORT = "Standort"
+COL_LETZTER = "Letzter Batteriewechsel"
+COL_NAECHSTER = "Nächster Wechsel (geplant)"
+COL_VERMERK = "Vermerke (z.B. Batterie)"
+COL_STATUS = "Status"
 
 # Grundstruktur sicherstellen
 if df is None or df.empty or COL_NAME not in df.columns:
