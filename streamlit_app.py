@@ -116,7 +116,10 @@ try:
         alle_standorte = sorted([s for s in df_clean[COL_ORT].unique() if s != ""])
         filter_ort = st.selectbox("Nach Standort filtern:", ["Alle Standorte"] + alle_standorte)
         
-        df_view = df_aktuell_check.copy()
+        # NEU: Erst nach Datum (Nächster Wechsel) aufsteigend sortieren, damit Rot oben ist
+        # Dann Duplikate entfernen, um den aktuellsten Stand zu behalten
+        df_view = df_clean.sort_values(by=[COL_NAECHSTER], ascending=True).drop_duplicates(subset=[COL_NAME])
+        
         if filter_ort != "Alle Standorte":
             df_view = df_view[df_view[COL_ORT] == filter_ort]
 
