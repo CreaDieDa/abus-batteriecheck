@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # Seite konfigurieren
-st.set_page_config(page_title="Abus-Batteriecheck", page_icon="🔋")
+st.set_page_config(page_title="ABUS-Batteriecheck", page_icon="🔋")
  
 st.title("🔋 Abus-Battcerieheck")
 
