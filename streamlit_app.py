@@ -46,6 +46,9 @@ try:
     df_raw = load_data()
     df = df_raw.copy()
 
+    # HEUTE ganz am Anfang definieren
+    heute = datetime.now().date()
+
     # Spaltennamen definieren
     COL_NAME = "Sender Name"
     COL_ORT = "Standort"
@@ -58,21 +61,26 @@ try:
     df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
     
     # 3. AUTOMATISCHE ERGÄNZUNG (+547 Tage)
-    # Das füllt die "None" Felder aus deinem ersten Screenshot
+    # Füllt die leeren Felder aus deinem Screenshot
     maske = (df[COL_LETZTER].notnull()) & (df[COL_NAECHSTER].isnull())
     df.loc[maske, COL_NAECHSTER] = df.loc[maske, COL_LETZTER] + timedelta(days=547)
 
     # 4. SÄUBERUNG & SORTIERUNG FÜR DIE AKTUELL-ANZEIGE
     df_clean = df[df[COL_NAME].notnull() & (df[COL_NAME] != "")].copy()
     
-    # WICHTIG: Erst nach Datum ABSTEIGEND sortieren (neueste Wechsel nach oben)
-    # Dann drop_duplicates: Behält nur die erste Zeile pro Sender (also die neueste!)
+    # Erst nach Datum ABSTEIGEND sortieren (neueste oben)
+    # Behält nur die erste Zeile pro Sender (also die neueste!)
     df_aktuell = df_clean.sort_values(by=[COL_NAME, COL_LETZTER], ascending=[True, False])
     df_aktuell = df_aktuell.drop_duplicates(subset=[COL_NAME], keep='first')
     
-    # 5. FINALER VIEW FÜR DIE TABELLE (Rot/Überfällig nach oben)
-    # Jetzt sortieren wir die bereits gefilterten aktuellen Sender nach Dringlichkeit
+    # 5. FINALER VIEW FÜR DIE TABELLE (Überfällig nach oben)
     df_view_final = df_aktuell.sort_values(by=[COL_NAECHSTER], ascending=True)
+
+    # --- DASHBOARD BERECHNUNG ---
+    kritisch = len(df_view_final[df_view_final[COL_NAECHSTER] < heute])
+    bald = len(df_view_final[(df_view_final[COL_NAECHSTER] >= heute) & (df_view_final[COL_NAECHSTER] < heute + timedelta(days=30))])
+
+    # Ab hier die Anzeige (c1, c2, c3, st.dataframe, etc.)
 
     # --- DASHBOARD ---
     kritisch = len(df_view_final[df_view_final[COL_NAECHSTER] < heute])
