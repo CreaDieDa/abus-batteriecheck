@@ -43,6 +43,12 @@ if df is None or df.empty or COL_NAME not in df.columns:
 # Datumsformate vorbereiten
 df[COL_LETZTER] = pd.to_datetime(df[COL_LETZTER], errors='coerce').dt.date
 df[COL_NAECHSTER] = pd.to_datetime(df[COL_NAECHSTER], errors='coerce').dt.date
+
+# --- AUTOMATISCHE ERGÄNZUNG FÜR LEERE FELDER ---
+# Wenn 'Letzter Wechsel' da ist, aber 'Nächster Wechsel' fehlt: Berechne +547 Tage
+maske = df[COL_LETZTER].notnull() & df[COL_NAECHSTER].isnull()
+df.loc[maske, COL_NAECHSTER] = df.loc[maske, COL_LETZTER] + timedelta(days=547)
+
 df_clean = df.dropna(subset=[COL_NAME]).copy()
 df_clean = df_clean[df_clean[COL_NAME].astype(str).str.lower() != "none"]
 
