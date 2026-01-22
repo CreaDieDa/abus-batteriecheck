@@ -29,8 +29,17 @@ def load_data():
 
 try:
     df = get_data()
-    # Diese Zeile hier einfügen:
-    df = df.astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
+    # Der None-Killer (muss exakt so weit eingerückt sein wie df = get_data)
+    df = df.fillna("").astype(str).replace(["None", "nan", "NaN", "<NA>"], "")
+    
+    # Diese Zeilen müssen AUCH eingerückt bleiben:
+    COL_NAME = "Sender Name"
+    COL_ORT = "Standort"
+    COL_LETZTER = "Letzter Batteriewechsel"
+    COL_NAECHSTER = "Nächster Wechsel (geplant)"
+
+except Exception as e:
+    st.error(f"Fehler: {e}")
 
 COL_NAME = "Sender Name"
 COL_ORT = "Standort"
