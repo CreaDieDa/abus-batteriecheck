@@ -3,15 +3,31 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime, timedelta
 
-# 1. Seitenkonfiguration
+# 1. SEITENKONFIGURATION (Optimiert für Vollbild)
 st.set_page_config(page_title="ABUS Batteriecheck", page_icon="🔋", layout="wide")
 
-# 2. Titel
+# CSS für Vollbild-Modus auf dem iPhone (blendet Browser-Leisten besser aus)
+st.markdown("""
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .stDeployButton {display:none;}
+    </style>
+    """, unsafe_allow_html=True)
+
+# 2. TITEL
 st.title("🔋 ABUS Batteriecheck")
 
-# --- VERBINDUNG & DATEN ---
+# --- VERBINDUNG & DATEN (Mit Turbo-Caching) ---
 conn = st.connection("gsheets", type=GSheetsConnection)
-df = conn.read(ttl=0) 
+
+@st.cache_data(ttl=600) # Speichert Daten für 10 Minuten für schnelles Laden am Handy
+def load_data():
+    return conn.read(spreadsheet=st.secrets.get("spreadsheet"), ttl=0)
+
+df = load_data()
 
 COL_NAME = "Sender Name"
 COL_ORT = "Standort"
@@ -20,6 +36,7 @@ COL_NAECHSTER = "Nächster Wechsel (geplant)"
 COL_VERMERK = "Vermerke (z.B. Batterie)"
 COL_STATUS = "Status"
 
+# Grundstruktur sicherstellen
 if df is None or df.empty or COL_NAME not in df.columns:
     df = pd.DataFrame(columns=[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK, COL_STATUS])
 
@@ -36,20 +53,12 @@ def format_date(d):
 def style_status(row):
     h = datetime.now().date()
     n = row[COL_NAECHSTER]
-    # Standard: Keine Farbe
-    if pd.isna(n): 
-        return [''] * len(row)
-    
-    # Kritisch (Rot) - Schrift schwarz für bessere Lesbarkeit
-    if n < h: 
+    if pd.isna(n): return [''] * len(row)
+    if n < heute: # Überfällig
         return ['background-color: #ffcccc; color: black; font-weight: bold'] * len(row)
-    
-    # Bald fällig (Gelb) - Schrift schwarz
-    elif n < h + timedelta(days=30): 
+    elif n < heute + timedelta(days=30): # Bald fällig
         return ['background-color: #fff3cd; color: black; font-weight: bold'] * len(row)
-    
-    # Alles OK (Grün) - Schrift schwarz
-    else: 
+    else: # OK
         return ['background-color: #d4edda; color: black'] * len(row)
 
 # --- DASHBOARD ---
@@ -83,13 +92,18 @@ with st.expander("➕ Neuen Batteriewechsel registrieren"):
         
         o_in = st.text_input("Standort (z.B. Erdgeschoss)", value=b_ort)
         v_in = st.text_input("Vermerke (z.B. CR2032)")
+        
         if st.form_submit_button("Speichern"):
-            naechster = d_in + timedelta(days=547)
-            new_row = pd.DataFrame([{COL_NAME: n_in, COL_ORT: o_in, COL_LETZTER: d_in, COL_NAECHSTER: naechster, COL_VERMERK: v_in, COL_STATUS: "OK"}])
-            df = pd.concat([df, new_row], ignore_index=True)
-            conn.update(data=df)
-            st.success("Gespeichert!")
-            st.rerun()
+            if n_in:
+                naechster = d_in + timedelta(days=547)
+                new_row = pd.DataFrame([{COL_NAME: n_in, COL_ORT: o_in, COL_LETZTER: d_in, COL_NAECHSTER: naechster, COL_VERMERK: v_in, COL_STATUS: "OK"}])
+                df_to_save = pd.concat([df, new_row], ignore_index=True)
+                conn.update(data=df_to_save)
+                st.cache_data.clear() # Cache leeren, damit neue Daten sofort sichtbar sind
+                st.success("Gespeichert!")
+                st.rerun()
+            else:
+                st.error("Bitte einen Namen für den Sender eingeben.")
 
 # --- ANZEIGE MIT STANDORT-FILTER ---
 if not df_clean.empty:
@@ -111,14 +125,13 @@ if not df_clean.empty:
     csv = df_aktuell.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Liste für PDF-Druck exportieren (CSV)", csv, f"ABUS_Check_{heute}.csv", "text/csv")
     
-    # --- HISTORIE MIT SENDER-FILTER ---
+    # --- HISTORIE ---
     st.markdown("---")
-    with st.expander("🕒 Historie & Verlauf (pro Sender filterbar)", expanded=True):
+    with st.expander("🕒 Historie & Verlauf (pro Sender filterbar)", expanded=False):
         alle_sender = sorted(df_clean[COL_NAME].unique())
-        filter_sender = st.selectbox("Sender auswählen, um Verlauf zu sehen:", ["Alle Sender anzeigen"] + alle_sender)
+        filter_sender = st.selectbox("Sender auswählen:", ["Alle Sender anzeigen"] + alle_sender)
         
         df_hist = df_clean.sort_values(by=COL_LETZTER, ascending=False).copy()
-        
         if filter_sender != "Alle Sender anzeigen":
             df_hist = df_hist[df_hist[COL_NAME] == filter_sender]
             
@@ -126,10 +139,5 @@ if not df_clean.empty:
         df_hist[COL_NAECHSTER] = df_hist[COL_NAECHSTER].apply(format_date)
         
         st.table(df_hist[[COL_NAME, COL_ORT, COL_LETZTER, COL_NAECHSTER, COL_VERMERK]])
-else:
-    st.info("Noch keine Daten vorhanden.")
-    if COL_NAECHSTER in df_view.columns: df_view[COL_NAECHSTER] = df_view[COL_NAECHSTER].apply(format_date)
-    
-    st.table(df_view)
 else:
     st.info("Noch keine Daten vorhanden. Nutze das Formular oben!")
